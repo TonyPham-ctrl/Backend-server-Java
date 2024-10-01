@@ -1,0 +1,16 @@
+
+
+
+Compiling AggregationServer.java
+-> default port
+mvn exec:java -Dexec.mainClass="com.mycompany.app.AggregationServer"
+
+-> custom <port> variable
+mvn exec:java -Dexec.mainClass="com.mycompany.app.AggregationServer"  -Dexec.args="<port>"
+
+Compiling GETClient.java
+-> custom <server_name> and <port>
+mvn exec:java -Dexec.mainClass="com.mycompany.app.GETClient" -Dexec.args="<server_name>:<port>"
+
+Compiling ContentServer.java
+mvn exec:java -Dexec.mainClass="com.mycompany.app.ContentServer" -Dexec.args="localhost:4567 /home/tonypham/distributedSystem2024S2/my-app/src/main/java/com/mycompany/app/dataFile1.txt"
