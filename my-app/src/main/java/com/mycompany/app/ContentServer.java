@@ -2,10 +2,7 @@ package com.mycompany.app;
 
 import java.io.*;
 import java.net.*;
-import java.nio.file.*;
-import org.json.simple.parser.ParseException;
 import org.json.simple.*;
-import org.json.simple.parser.JSONParser;
 
 public class ContentServer {
     private static int PORT = 4567;
@@ -18,7 +15,7 @@ public class ContentServer {
             String key = line.substring(0, colonIndex).trim();
             String value = line.substring(colonIndex+1, line.length()).trim();
 
-            System.out.println( key + " | " + value);
+            //System.out.println( key + " | " + value);
             jsonFile.put(key,value);
         } else {
             System.out.println("Invalid entry, no colon");
@@ -59,7 +56,7 @@ public class ContentServer {
 
             // preparing http put request to aggregation server as per assignment format
             String jsonData = jsonFile.toJSONString();
-            writer.println("PUT /weatherData HTTP/1.1");
+            writer.println("PUT /weather.json HTTP/1.1");
             writer.println("User-Agent: ATOMClient/1/0");
             writer.println("Content-Type: application/json");
             writer.println("Content-Length: " + jsonData.length());

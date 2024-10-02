@@ -10,7 +10,7 @@ public class GETClient {
 
     private static int PORT = 4567;
     private static String serverName = "localhost";
-
+    private static LamportClock lamportClock = new LamportClock();
     public static void main(String[] args) {
         if (args.length < 1) {
             System.out.println("Too few arguments, <serverName:host> <stationID (optional)>");
@@ -22,38 +22,47 @@ public class GETClient {
         String serverInfo = args[0];
         @SuppressWarnings("unused")
         String stationID = args.length == 2 ? args[1] : "";
-
         // parsing server information
         String[] serverAddr = parseServerInfo(serverInfo);
-
         PORT = Integer.parseInt(serverAddr[1]);
         serverName = serverAddr[0];
 
+        // connecting to server socket
         try (Socket socket = new Socket(serverName, PORT);
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+                
+            lamportClock.increment();
 
             // Send GET request
-            out.println("GET /weatherData");
+            out.println("GET /weather.json HTTP/1.1");
+            out.println("Lamport-Clock: "+ lamportClock.getTime());
+            out.println();
+            out.flush();
 
             // Read response
-            String res;
-            StringBuilder response = new StringBuilder();
-            while ((res = in.readLine()) != null) {
-                response.append(res);
+            lamportClock.increment();
+            String lamportString = in.readLine();
+            StringBuilder jsonResponse = new StringBuilder();
+            String line;
+            if (lamportString != null && lamportString.startsWith("Lamport-Clock: ")){
+                int receivedLamportClock = Integer.parseInt(lamportString.split(":")[1].trim());
+                //System.out.println("Received Lamport Clock: " + receivedLamportClock);
+                lamportClock.updateTime(receivedLamportClock);
             }
 
-            // print the raw response for debugging
-            // System.out.println("Raw response: " + response.toString());
+            while ((line = in.readLine()) != null && !line.isEmpty()){
+                jsonResponse.append(line);
+            }
 
-            if (response.length() == 0) {
+            if (jsonResponse.length() == 0) {
                 System.out.println("Received an empty response from the server.");
                 return;
             }
 
             // parse and print JSON data
             System.out.println("JSON data from Server --> ");
-            parseServerJson(response);
+            parseServerJson(jsonResponse);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -71,7 +80,8 @@ public class GETClient {
                 System.out.println(key + ": " + value);
             }
         } catch (ParseException e) {
-            System.out.println("Error parsing JSON: " + e.getMessage());
+            System.out.println("Client - Error parsing JSON: " + e.getMessage());
+            System.out.println(res);
         }
     }
 
@@ -86,5 +96,25 @@ public class GETClient {
             return null;
         }
         return parts;
+    }
+}
+
+class LamportClock {
+    private int time;
+
+    public LamportClock(){
+        this.time = 0;
+    }
+
+    public void increment(){
+        this.time ++;
+    }
+
+    public void updateTime(int receivedTime){
+        this.time = Math.max(receivedTime, this.time)+1;
+    }
+
+    public int getTime(){
+        return this.time;
     }
 }
