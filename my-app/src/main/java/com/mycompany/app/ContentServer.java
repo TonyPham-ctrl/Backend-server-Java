@@ -14,10 +14,10 @@ public class ContentServer {
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            System.out.println("Too few arguments, <serverName:host> <stationID (optional)>");
+            System.out.println("Too few arguments, <serverName:host> <filepath> ");
             return;
         } else if (args.length > 2) {
-            System.out.println("Too many arguments, <serverName:host> <stationID (optional)>");
+            System.out.println("Too many arguments, <serverName:host> <filepath>");
             return;
         }
         String[] serverInfo = args[0].split(":");
@@ -30,6 +30,7 @@ public class ContentServer {
         try (Scanner scanner = new Scanner(System.in)) {
             boolean exit = false;
             while (!exit) {
+                lamportClock.increment();
                 PUTreq();
                 System.out
                         .println("\n type (yes) to send another json, (no) to stop");
@@ -65,6 +66,7 @@ public class ContentServer {
             writer.println("User-Agent: ATOMClient/1/0");
             writer.println("Content-Type: application/json");
             writer.println("Content-Length: " + jsonData.length());
+            writer.println("Lamport-Clock: " + lamportClock.getTime());
             writer.println();
             writer.println(jsonData); // Send the JSON body
             writer.flush();
@@ -72,12 +74,16 @@ public class ContentServer {
             // read server response
             String responseLine;
             while ((responseLine = reader.readLine()) != null) {
-                if (responseLine.startsWith("Lamport-Clock :")){
-
-                }
-                System.out.println();
                 System.out.println("Server response: " + responseLine);
+
+            // Check for Lamport-Clock in response
+            if (responseLine.startsWith("Lamport-Clock: ")) {
+                int receivedLamportClock = Integer.parseInt(responseLine.split(":")[1].trim());
+                lamportClock.updateTime(receivedLamportClock);  // Update ContentServer's Lamport Clock
+                System.out.println("Updated ContentServer's Lamport Clock: " + lamportClock.getTime());
             }
+            }
+            System.out.println();
         } catch (IOException e) {
             System.out.println("Cannot connect to server or send data: " + e.getMessage());
         }
@@ -102,7 +108,7 @@ class LamportClock {
     private int time;
 
     public LamportClock() {
-        this.time = 0;
+        this.time = 1;
     }
 
     public void increment() {
@@ -115,5 +121,20 @@ class LamportClock {
 
     public int getTime() {
         return this.time;
+    }
+    public int parseReceivedClock(BufferedReader in) {
+        String lamportString = null;
+        int receivedLamportClock = -1;
+        try {
+            lamportString = in.readLine();
+            if (lamportString != null && lamportString.startsWith("Server response: Lamport-Clock: ")) {
+                receivedLamportClock = Integer.parseInt(lamportString.split(":")[2].trim());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return -1;
+        }
+        System.out.println("Client - Lamport-Clock: " + receivedLamportClock);
+        return receivedLamportClock;
     }
 }

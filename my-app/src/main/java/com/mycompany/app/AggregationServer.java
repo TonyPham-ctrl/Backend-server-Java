@@ -2,13 +2,13 @@ package com.mycompany.app;
 
 import java.io.*;
 import java.net.*;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import com.mycompany.app.AggregationServer.clientHandler;
 
-@SuppressWarnings("unused")
 public class AggregationServer {
     private static int PORT = 4567;
     private static Socket socket = null;
@@ -16,6 +16,9 @@ public class AggregationServer {
     private static JSONObject jsonStorage = new JSONObject();
     private static boolean initStorage = true;
     private static LamportClock lamportClock = new LamportClock();
+    private static final Queue<Socket> connectionQueue = new LinkedList<>();
+    private static int MAX_CONNECTION = 20;
+    private static String storageFilePath = "/home/tonypham/distributedSystem2024S2/my-app/src/main/java/com/mycompany/app/jsonStorage.json";
 
     public static void main(String[] args) {
         if (args.length == 1) {
@@ -27,12 +30,18 @@ public class AggregationServer {
         try {
             server = new ServerSocket(PORT);
             System.out.println("Server started successfully...");
+            jsonStorage = readJson();
+            if (jsonStorage != null) {
+                System.out.println("Entire JSON Object: " + jsonStorage.toJSONString());
+            } else {
+                System.out.println("Failed to read JSON data.");
+            }
             while (true) {
                 // accepting socket connection
-                lamportClock.increment();
                 Socket socket = server.accept();
                 System.out.println("==================================");
                 System.out.println("New device connected");
+                System.out.println("Lamport clock after device connection: " + lamportClock.getTime());
 
                 // handling client connection in new thread
                 new clientHandler(socket).start();
@@ -53,12 +62,16 @@ public class AggregationServer {
     private static void GEThandler(BufferedReader in, PrintWriter out) {
         System.out.println("Detected GET request from client");
         int receivedLamport = lamportClock.parseReceivedClock(in);
-        System.out.println("Client - " + receivedLamport);
-        if (receivedLamport == - 1){
-            System.out.println("Invalid lamport from client");
+        System.out.println("Received Lamport clock from client: " + receivedLamport);
+        
+        if (receivedLamport == -1) {
+            System.out.println("Invalid Lamport clock from client");
             return;
         }
         lamportClock.updateTime(receivedLamport);
+        System.out.println("Updated Lamport clock after GET request: " + lamportClock.getTime());
+        
+        lamportClock.increment();
         out.println("Lamport-Clock: " + lamportClock.getTime());
         if (!jsonStorage.isEmpty()) {
             System.out.println("Sending JSON to client");
@@ -72,11 +85,18 @@ public class AggregationServer {
     // handler function for PUT requests
     private static void PUThandler(BufferedReader in, PrintWriter out) {
         System.out.println("Detected PUT request from content server");
+
+
         try {
             // reading http header
             String line;
             while ((line = in.readLine()) != null && !line.isEmpty()) {
                 System.out.println(line);
+                if (line.startsWith("Lamport-Clock: ")) {
+                    int receivedLamportClock = Integer.parseInt(line.split(":")[1].trim());
+                    lamportClock.updateTime(receivedLamportClock);
+                    System.out.println("Updated Lamport clock after receiving PUT request: " + lamportClock.getTime());
+                }
             }
             // reading body -> json data
             StringBuilder jsonString = new StringBuilder();
@@ -94,23 +114,29 @@ public class AggregationServer {
                     return;
                 }
                 System.out.println("Received JSON from content server");
+
+                // store the received JSON data
+                storeJson(jsonData);
+                jsonStorage = jsonData;
+                
+                // send confirmation to content server
+                lamportClock.increment();
+                System.out.println("Lamport clock incremented before sending confirmation: " + lamportClock.getTime());
+                if (jsonStorage != null || jsonStorage == jsonData) {
+                    out.println("Content stored / updated");
+                } else {
+                    out.println("Failed to update storage");
+                }
+
                 if (initStorage) {
                     out.println("200 Successful connection");
                     initStorage = false;
                 } else {
                     out.println("201 - HTTP_CREATED");
                 }
-
-                // store the received JSON data
-                jsonStorage = jsonData;
-
-                // send confirmation to content server
-                if (jsonStorage != null || jsonStorage == jsonData) {
-                    out.println("Content stored / updated");
-                } else {
-                    out.println("Failed to update storage");
-                }
+                System.out.println("Final Lamport clock after PUT request: " + lamportClock.getTime());
                 out.println("Lamport-Clock: " + lamportClock.getTime());
+                out.flush();
             } catch (ParseException e) {
                 System.out.println("Error parsing JSON: " + e.getMessage());
                 out.println("500 Internal Server Error - Failed to parse JSON.");
@@ -120,7 +146,6 @@ public class AggregationServer {
             error.printStackTrace();
         }
     }
-
     static class clientHandler extends Thread {
         private Socket clientSocket;
 
@@ -135,14 +160,18 @@ public class AggregationServer {
                 PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 
                 String req = in.readLine();
+                //System.out.println("Initial Lamport clock in clientHandler: " + lamportClock.getTime());
+                lamportClock.increment();
+                System.out.println("Lamport clock incremented after receiving request: " + lamportClock.getTime());
                 if (req != null && req.startsWith("GET")) {
                     GEThandler(in, out);
-
                 } else if (req != null && req.startsWith("PUT")) {
                     PUThandler(in, out);
                 } else {
                     out.println("400 Error - Invalid Request");
                 }
+
+                System.out.println("Final Lamport clock after clientHandler: " + lamportClock.getTime());
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -156,7 +185,29 @@ public class AggregationServer {
                 }
             }
         }
+    }
 
+    public static void storeJson(JSONObject jsonObject){
+        try (FileWriter fileWriter = new FileWriter(storageFilePath)){
+            fileWriter.write(jsonObject.toJSONString());
+            fileWriter.flush();
+            System.out.println("Stored JSON file to intemediary");
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+    public static JSONObject readJson(){
+        JSONParser parser = new JSONParser();
+        JSONObject jsonObject = null;
+        try (BufferedReader reader = new BufferedReader(new FileReader(storageFilePath))) {
+            // Parse the JSON file
+            jsonObject = (JSONObject) parser.parse(reader);
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
+        } catch (ParseException e) {
+            System.out.println("ParseException: " + e.getMessage());
+        }
+        return jsonObject;
     }
 }
 
@@ -169,10 +220,12 @@ class LamportClock {
 
     public void increment() {
         this.time++;
+        System.out.println("Lamport clock incremented: " + this.time);
     }
 
     public void updateTime(int receivedTime) {
         this.time = Math.max(receivedTime, this.time) + 1;
+        System.out.println("Lamport clock updated after receiving: " + receivedTime + ", new time: " + this.time);
     }
 
     public int getTime() {
