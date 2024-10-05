@@ -2,9 +2,9 @@ package com.mycompany.app;
 
 import java.io.*;
 import java.net.*;
-import java.util.LinkedList;
-import java.util.Queue;
 
+
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -16,7 +16,6 @@ public class AggregationServer {
     private static JSONObject jsonStorage = new JSONObject();
     private static boolean initStorage = true;
     private static LamportClock lamportClock = new LamportClock();
-    private static final Queue<Socket> connectionQueue = new LinkedList<>();
     private static int MAX_CONNECTION = 20;
     private static String storageFilePath = "/home/tonypham/distributedSystem2024S2/my-app/src/main/java/com/mycompany/app/jsonStorage.json";
 
@@ -31,11 +30,6 @@ public class AggregationServer {
             server = new ServerSocket(PORT);
             System.out.println("Server started successfully...");
             jsonStorage = readJson();
-            if (jsonStorage != null) {
-                System.out.println("Entire JSON Object: " + jsonStorage.toJSONString());
-            } else {
-                System.out.println("Failed to read JSON data.");
-            }
             while (true) {
                 // accepting socket connection
                 Socket socket = server.accept();
@@ -85,15 +79,15 @@ public class AggregationServer {
     // handler function for PUT requests
     private static void PUThandler(BufferedReader in, PrintWriter out) {
         System.out.println("Detected PUT request from content server");
-
-
+        int receivedLamportClock = -1;
+        String receivedID = null;
         try {
             // reading http header
             String line;
             while ((line = in.readLine()) != null && !line.isEmpty()) {
                 System.out.println(line);
                 if (line.startsWith("Lamport-Clock: ")) {
-                    int receivedLamportClock = Integer.parseInt(line.split(":")[1].trim());
+                    receivedLamportClock = Integer.parseInt(line.split(":")[1].trim());
                     lamportClock.updateTime(receivedLamportClock);
                     System.out.println("Updated Lamport clock after receiving PUT request: " + lamportClock.getTime());
                 }
@@ -112,12 +106,19 @@ public class AggregationServer {
                     out.println("204 Status code: No content received");
                     System.out.println("Content server gave no data");
                     return;
+                } 
+                if (!jsonData.containsKey("id")){
+                    out.println("JSON rejected, no ID");
+                    System.out.println("Content server JSON gave no id");
+                    return;
+                } else {
+                    receivedID = (String) jsonData.get("id");
+                    //System.out.println("ID received is: " + receivedID);
                 }
                 System.out.println("Received JSON from content server");
 
-                // store the received JSON data
-                storeJson(jsonData);
-                jsonStorage = jsonData;
+                // store the received JSON data     
+                storeJson(jsonData, receivedID, receivedLamportClock);
                 
                 // send confirmation to content server
                 lamportClock.increment();
@@ -187,27 +188,35 @@ public class AggregationServer {
         }
     }
 
-    public static void storeJson(JSONObject jsonObject){
-        try (FileWriter fileWriter = new FileWriter(storageFilePath)){
-            fileWriter.write(jsonObject.toJSONString());
-            fileWriter.flush();
-            System.out.println("Stored JSON file to intemediary");
-        }catch (IOException e){
+    public static void storeJson(JSONObject jsonObject, String serverID, int serverLamportClock) {
+        File file = new File(storageFilePath);
+        jsonObject.put("lamport_clock", serverLamportClock);
+        // Write the JSONObject directly to the file
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write(jsonObject.toJSONString());
+            System.out.println("Stored JSON object to file successfully.");
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
+    
+
     public static JSONObject readJson(){
         JSONParser parser = new JSONParser();
         JSONObject jsonObject = null;
         try (BufferedReader reader = new BufferedReader(new FileReader(storageFilePath))) {
             // Parse the JSON file
-            jsonObject = (JSONObject) parser.parse(reader);
+             jsonObject = (JSONObject) parser.parse(reader);
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
         } catch (ParseException e) {
             System.out.println("ParseException: " + e.getMessage());
         }
         return jsonObject;
+    }
+
+    public static void jsonQueue(){
+
     }
 }
 
