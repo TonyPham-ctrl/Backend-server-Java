@@ -58,7 +58,7 @@ public class AggregationServer {
         }
     }
 
-    private static void GEThandler(BufferedReader in, PrintWriter out) {
+    public static void GEThandler(BufferedReader in, PrintWriter out) {
         System.out.println("Detected GET request from client");
         int receivedLamport = lamportClock.parseReceivedClock(in);
         System.out.println("Received Lamport clock from client: " + receivedLamport);
@@ -83,7 +83,7 @@ public class AggregationServer {
     }
 
     // handler function for PUT requests
-    private static void PUThandler(BufferedReader in, PrintWriter out) {
+    public static void PUThandler(BufferedReader in, PrintWriter out) {
         System.out.println("Detected PUT request from content server");
         int receivedLamportClock = -1;
         String receivedID = null;
@@ -376,7 +376,6 @@ class contentServer implements Comparable<contentServer> {
 
     @Override
     public int compareTo(contentServer other) {
-        // Compare contentServer objects based on their lamportClock
         return Integer.compare(this.lamportClock, other.lamportClock);
     }
 

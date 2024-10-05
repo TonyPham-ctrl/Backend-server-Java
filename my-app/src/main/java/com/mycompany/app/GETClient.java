@@ -9,11 +9,11 @@ import java.util.Scanner;
 
 public class GETClient {
 
-    private static int PORT = 4567;
-    private static String serverName = "localhost";
-    private static LamportClock lamportClock = new LamportClock();
-    private static boolean exit = false;
-    private static String stationID = null;
+    public static int PORT = 4567;
+    public static String serverName = "localhost";
+    public static LamportClockClient lamportClock = new LamportClockClient();
+    public static boolean exit = false;
+    public static String stationID = null;
 
     public static void main(String[] args) {
         if (args.length < 1) {
@@ -43,7 +43,7 @@ public class GETClient {
         }
     }
 
-    private static void terminalQuery(Scanner scaner) {
+    public static void terminalQuery(Scanner scaner) {
         System.out
                 .println("\n type (yes) for update, (no) to stop, (lamport) to show lamport");
         String userInput = scaner.nextLine().trim().toLowerCase();
@@ -55,7 +55,7 @@ public class GETClient {
         }
     }
 
-    private static void GETreq(StringBuilder jsonResponse) {
+    public static void GETreq(StringBuilder jsonResponse) {
         // connecting to server socket
         try (Socket socket = new Socket(serverName, PORT);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
@@ -90,12 +90,11 @@ public class GETClient {
                 return;
             }
         } catch (IOException e) {
-            System.out.println("HELLO");
             e.printStackTrace();
         }
     }
 
-    private static void parseServerJson(StringBuilder res) {
+    public static void parseServerJson(StringBuilder res) {
         JSONParser parser = new JSONParser();
         try {
             JSONObject jsonData = (JSONObject) parser.parse(res.toString());
@@ -111,7 +110,7 @@ public class GETClient {
         }
     }
 
-    private static String[] parseServerInfo(String serverInfo) {
+    public static String[] parseServerInfo(String serverInfo) {
         String[] parts;
 
         if (serverInfo.startsWith("http://")) {
@@ -125,10 +124,10 @@ public class GETClient {
     }
 }
 
-class LamportClock {
-    private int time;
+class LamportClockClient {
+    public int time;
 
-    public LamportClock() {
+    public LamportClockClient() {
         this.time = 1;
     }
 

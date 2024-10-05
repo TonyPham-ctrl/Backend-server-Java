@@ -9,7 +9,7 @@ import org.json.simple.*;
 public class ContentServer {
     private static int PORT = 4567;
     private static String serverName = "localhost";
-    private static LamportClock lamportClock = new LamportClock();
+    private static LamportClockContent lamportClock = new LamportClockContent();
     private static JSONObject jsonFile = new JSONObject();
 
     public static void main(String[] args) {
@@ -26,7 +26,7 @@ public class ContentServer {
         String filePath = args[1];
 
         // reading from file path and populating JSON object
-        fileReaderLoop(filePath);
+        fileReaderLoop(filePath, jsonFile);
         try (Scanner scanner = new Scanner(System.in)) {
             boolean exit = false;
             while (!exit) {
@@ -42,7 +42,7 @@ public class ContentServer {
         }
     }
 
-    private static void fileReaderLoop(String filePath){
+    public static void fileReaderLoop(String filePath, JSONObject jsonFile) { // Update method
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -50,11 +50,12 @@ public class ContentServer {
             }
         } catch (IOException error) {
             System.out.println("Error reading the file: " + error.getMessage());
-            return;
         }
     }
 
-    private static void PUTreq() {
+    
+
+    public static void PUTreq() {
         try (Socket socket = new Socket(serverName, PORT);
                 OutputStream outputStream = socket.getOutputStream();
                 PrintWriter writer = new PrintWriter(outputStream, true);
@@ -95,8 +96,6 @@ public class ContentServer {
         if (colonIndex != -1) {
             String key = line.substring(0, colonIndex).trim();
             String value = line.substring(colonIndex + 1, line.length()).trim();
-
-            // System.out.println( key + " | " + value);
             jsonFile.put(key, value);
         } else {
             System.out.println("Invalid entry, no colon");
@@ -104,10 +103,10 @@ public class ContentServer {
     }
 }
 
-class LamportClock {
+class LamportClockContent {
     private int time;
 
-    public LamportClock() {
+    public LamportClockContent() {
         this.time = 1;
     }
 
