@@ -13,23 +13,26 @@ public class GETClient {
     private static String serverName = "localhost";
     private static LamportClock lamportClock = new LamportClock();
     private static boolean exit = false;
+    private static String stationID = null;
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            System.out.println("Too few arguments, <serverName:host> <stationID (optional)>");
+            System.out.println("Too few arguments, <serverName:host> <stationID> (optional)>");
             return;
         } else if (args.length > 2) {
-            System.out.println("Too many arguments, <serverName:host> <stationID (optional)>");
+            System.out.println("Too many arguments, <serverName:host> <stationID> (optional)>");
             return;
         }
         String serverInfo = args[0];
-        @SuppressWarnings("unused")
-        String stationID = args.length == 2 ? args[1] : "";
+        if (args.length == 2) {
+            stationID = args[1];
+        }
         // parsing server information
         String[] serverAddr = parseServerInfo(serverInfo);
         PORT = Integer.parseInt(serverAddr[1]);
         serverName = serverAddr[0];
 
+        
         try (Scanner scanner = new Scanner(System.in)) {
             while (!exit) {
                 StringBuilder jsonResponse = new StringBuilder();
@@ -62,6 +65,9 @@ public class GETClient {
             lamportClock.increment();
             out.println("GET /weather.json HTTP/1.1");
             out.println("Lamport-Clock: " + lamportClock.getTime());
+            if (stationID != null){
+                out.println("StationID: " + stationID);
+            }
             out.println();
             out.flush();
 
@@ -84,6 +90,7 @@ public class GETClient {
                 return;
             }
         } catch (IOException e) {
+            System.out.println("HELLO");
             e.printStackTrace();
         }
     }
