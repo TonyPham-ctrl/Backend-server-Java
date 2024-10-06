@@ -6,12 +6,16 @@ import java.util.Scanner;
 
 import org.json.simple.*;
 
+// code for content server
+
 public class ContentServer {
     private static int PORT = 4567;
     private static String serverName = "localhost";
     private static LamportClockContent lamportClock = new LamportClockContent();
     private static JSONObject jsonFile = new JSONObject();
 
+
+    // main method that handles parameter input and file reading loop
     public static void main(String[] args) {
         if (args.length < 1) {
             System.out.println("Too few arguments, <serverName:host> <filepath> ");
@@ -23,6 +27,7 @@ public class ContentServer {
         String[] serverInfo = args[0].split(":");
         PORT = Integer.parseInt(serverInfo[1]);
         serverName = serverInfo[0];
+        // file path is where you want the content server to read a .txt file from and creating a JSONObject from it
         String filePath = args[1];
 
         // reading from file path and populating JSON object
@@ -42,6 +47,7 @@ public class ContentServer {
         }
     }
 
+    // loop that read file from file path
     public static void fileReaderLoop(String filePath, JSONObject jsonFile) { // Update method
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -55,13 +61,14 @@ public class ContentServer {
 
     
 
+    // sending put request to aggregation server
     public static void PUTreq() {
         try (Socket socket = new Socket(serverName, PORT);
                 OutputStream outputStream = socket.getOutputStream();
                 PrintWriter writer = new PrintWriter(outputStream, true);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            // sending put request
+            // preparing put request header
             String jsonData = jsonFile.toJSONString();
             writer.println("PUT /weather.json HTTP/1.1");
             writer.println("User-Agent: ATOMClient/1/0");
@@ -90,6 +97,7 @@ public class ContentServer {
         }
     }
 
+    // method to read file and creating JSONObject
     @SuppressWarnings("unchecked")
     public static void fileReader(String line, JSONObject jsonFile) {
         int colonIndex = line.indexOf(":");
@@ -103,6 +111,7 @@ public class ContentServer {
     }
 }
 
+// class to create lamport clock
 class LamportClockContent {
     private int time;
 
@@ -114,6 +123,7 @@ class LamportClockContent {
         this.time++;
     }
 
+    // updating content server time against received lamport clock with logic max(this.time, receiveTime) + 1
     public void updateTime(int receivedTime) {
         this.time = Math.max(receivedTime, this.time) + 1;
     }
@@ -121,6 +131,8 @@ class LamportClockContent {
     public int getTime() {
         return this.time;
     }
+
+    // parsing received clock within Aggregation server response
     public int parseReceivedClock(BufferedReader in) {
         String lamportString = null;
         int receivedLamportClock = -1;

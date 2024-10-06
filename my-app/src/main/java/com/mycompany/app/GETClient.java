@@ -7,6 +7,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import java.util.Scanner;
 
+// code for GETClient
 public class GETClient {
 
     public static int PORT = 4567;
@@ -15,6 +16,8 @@ public class GETClient {
     public static boolean exit = false;
     public static String stationID = null;
 
+
+    // main function that handles parameter input
     public static void main(String[] args) {
         if (args.length < 1) {
             System.out.println("Too few arguments, <serverName:host> <stationID> (optional)>");
@@ -32,7 +35,7 @@ public class GETClient {
         PORT = Integer.parseInt(serverAddr[1]);
         serverName = serverAddr[0];
 
-        
+        // while loop for client
         try (Scanner scanner = new Scanner(System.in)) {
             while (!exit) {
                 StringBuilder jsonResponse = new StringBuilder();
@@ -43,6 +46,8 @@ public class GETClient {
         }
     }
 
+
+    // method to handle continuous terminal input
     public static void terminalQuery(Scanner scaner) {
         System.out
                 .println("\n type (yes) for update, (no) to stop, (lamport) to show lamport");
@@ -55,6 +60,7 @@ public class GETClient {
         }
     }
 
+    // method to send GET request to aggregation server with PORT
     public static void GETreq(StringBuilder jsonResponse) {
         // connecting to server socket
         try (Socket socket = new Socket(serverName, PORT);
@@ -71,7 +77,7 @@ public class GETClient {
             out.println();
             out.flush();
 
-            // Read response
+            // Read server response
             int serverLamportClock = lamportClock.parseReceivedClock(in);
             if (serverLamportClock == -1) {
                 System.out.println("Unable to parse server's lamport");
@@ -80,6 +86,7 @@ public class GETClient {
                 lamportClock.updateTime(serverLamportClock);
             }
 
+            // creating json string
             String line;
             while ((line = in.readLine()) != null && !line.isEmpty()) {
                 jsonResponse.append(line);
@@ -94,6 +101,7 @@ public class GETClient {
         }
     }
 
+    // parsing the server response to client
     public static void parseServerJson(StringBuilder res) {
         JSONParser parser = new JSONParser();
         try {
@@ -110,6 +118,7 @@ public class GETClient {
         }
     }
 
+    // parsing the user's parameter input for server name and host
     public static String[] parseServerInfo(String serverInfo) {
         String[] parts;
 
@@ -124,6 +133,7 @@ public class GETClient {
     }
 }
 
+// class implementation of lamport clock
 class LamportClockClient {
     public int time;
 
@@ -135,6 +145,7 @@ class LamportClockClient {
         this.time++;
     }
 
+    // updating clients lamport clock against received lamport clock with logic max(this.time, receivedTime) + 1
     public void updateTime(int receivedTime) {
         this.time = Math.max(receivedTime, this.time) + 1;
     }
@@ -143,6 +154,8 @@ class LamportClockClient {
         return this.time;
     }
 
+
+    // parsing received clock from server response
     public int parseReceivedClock(BufferedReader in) {
         String lamportString = null;
         int receivedLamportClock = -1;
