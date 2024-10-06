@@ -23,6 +23,8 @@ main .java files are found in src/main/java/com/mycompany
 PLEASE NOTE: Due to the implementation of AggregationServer.java and its' permanent while loop, unit tests are unable to be made
 due to runtime error.  The individual unit tests were made for AggregationServer manually.  Sorry for the inconveniences.
 
+The 30 second disconnection for content server not responding is unable to be implemented, sorry for the inconveniences.
+
 Within this project, station ID is the same as the ID within JSON file that content server sends, each station ID / ID entry in 
 json file from content server should be unique to that server.
 
