@@ -1,0 +1,99 @@
+Quan Pham
+
+This README file count as documentation for this project
+
+This project uses the following dependencies:
+- Maven (Assist in development, compilation, project architecture and dependency installations)
+- JUnit (Unit testing)
+- JSON simple (JSON utilities and parsing library)
+- Mockito (Unit testing)
+in the pom.xml file from Maven, there are additional details about this project that this documentation may have missed.
+
+Entries within this documentation are:
+* LAMPORT CLOCK
+* QUEUE SYSTEM (AggregationServer.java)
+* REFERENCES AND RESOURCES
+* COMPILING INSTRUCTIONS
+
+main .java files are found in src/main/java/com/mycompany
+
+PLEASE NOTE: Due to the implementation of AggregationServer.java and its' permanent while loop, unit tests are unable to be made
+due to runtime error.  The individual unit tests were made for AggregationServer manually.  Sorry for the inconveniences.
+
+The 30 second disconnection for content server not responding is unable to be implemented, sorry for the inconveniences.
+
+Within this project, station ID is the same as the ID within JSON file that content server sends, each station ID / ID entry in 
+json file from content server should be unique to that server.
+
+Unit test files are found in /test/java/com/mycompany/app, where /test is found in /src
+
+==========================================================================================================================
+LAMPORT CLOCK:
+Lamport clock is implemented in GETClient, AggregationServer, and ContentServer
+The clock starts at 1 at initialisation of each program and increments by 1:
+ - before sending a message
+ - receiving a message
+As per the reqirement, when a GETClient sends a GET request to AggregationServer, the server is expected to send back
+the appropriate JSON file requested.  Similarly, when a ContentServer sends a PUT request to AggregationServer, the 
+AggregationServer is expected to send confirmation to ContentServer whether the request is successful or not.  Hence, 
+for every GET or PUT request received, the AggregationServer will send back a message, which will also increment its' lamport
+clock.  
+The algorithm used to update the lamport clock on receiving end follows:
+currLamportClock = max(currLamportClock, receivedLamportClock) + 1
+where currLamportClock represents the current lamport clock value of the receiving entity, and receivedLamportClock represents
+the lamport clock value of the entity that sent the request/message
+For example: 
+GETClient increments its clock to 2 before sending GET request
+client(2) -- GET --> AggregationServer(1)
+AggregationServer clock increments to 3 upon receiving GET request (as per lamport clock update algorithm)
+AggregationServer read the request and prepares to send back JSON file
+AggregationServer clock increments to 4 before sending JSON file
+AggregationServer(4) -- JSON --> client(2)
+GETClient receive JSON file and update its' clock to 5
+The exchange ends with AggregationServer(4) and GETClient(5)
+
+This logic applies to content server sending PUT request to AggregationServer
+
+==========================================================================================================================
+QUEUE SYSTEM (AggregationServer):
+In AggregationServer.java, a custom class "contentServer" is implemented with attribute "ID" and "lamportClock" is implemented
+This represents the attributes of a ContentServer.java entity when it connects with AggregationServer.java server.  Attribute "ID"
+refers to the ID value on the JSON file that is sent within the PUT request, and "lamportClock" attribute value refers to 
+AggregationServer lamportClock.getTime() value when it received the JSON file.  
+It is considered more accurate and practical to store the Lamport clock value of the AggregationServer upon receiving a JSON file,
+rather than storing the Lamport clock value of the content server at the time of sending the request. This is because if a new 
+content server is initialized with a Lamport clock value of 1 and sends a PUT request to the AggregationServer, its clock would 
+likely be the smallest. As a result, it would be unfairly prioritized in the queue, moving it closer to the front, even though 
+its actual significance might not warrant such a high priority.
+Furthermore, the "ID" attribute that refers to the "id" entry of the sent JSON file also act as stationID.
+
+The goal of implementing contentServer class to be able to implement a priority queue system that pushes the content server with smallest value of lamportClock 
+to the front of the queue for efficent access of least updated json entry.  Where the queue would push JSON file entries with the
+smallest lamportClock to the front, creating an LRU queue system.  The size of the queue is limited to 20, and the front of the queue
+, which represents LRU JSON file will be replaced, and newly added JSON file entries are appended to the back of the queue.  Should
+an existing JSON file entry within the queue is updated, it will refresh its' position within the queue and be pushed to the back.
+
+==========================================================================================================================
+REFERENCES AND RESOURCES:
+https://www.javacodegeeks.com/how-to-use-pair-with-java-priorityqueue.html
+https://www.geeksforgeeks.org/socket-programming-in-java/
+https://docs.oracle.com/javase/8/docs/api/java/net/Socket.html
+https://stackoverflow.com/questions/21953958/how-to-send-json-object-through-java-sockets
+
+
+COMPILING INSTRUCTIONS:
+The following compilation instructions uses maven for executing the files, as that is what is used during development and can
+be used for testing
+
+Compiling AggregationServer.java
+-> default port
+mvn exec:java -Dexec.mainClass="com.mycompany.app.AggregationServer"
+-> custom <port> variable
+mvn exec:java -Dexec.mainClass="com.mycompany.app.AggregationServer"  -Dexec.args="<port>"
+
+Compiling GETClient.java
+-> custom <server_name> and <port>
+mvn exec:java -Dexec.mainClass="com.mycompany.app.GETClient" -Dexec.args="<server_name>:<port> <stationID>"
+
+Compiling ContentServer.java
+mvn exec:java -Dexec.mainClass="com.mycompany.app.ContentServer" -Dexec.args="localhost:4567 /home/tonypham/distributedSystem2024S2/my-app/src/main/java/com/mycompany/app/dataFile1.txt"
